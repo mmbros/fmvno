@@ -1,0 +1,55 @@
+digraph G {
+
+
+  node [fontname = "Helvetica-Outline" ];
+
+  start0 [shape=Mdiamond];
+  start1 [shape=Mdiamond];
+  end [shape=Msquare];
+
+  init [label="Da Consegnare"];
+
+  node [
+		style = filled;
+		color = gold1 ];
+
+  da_sped [label="Da Spedire OPL"];
+  inv_opl [label="Inviato OPL"];
+  err_opl [label="Errore OPL"];
+  sped_opl [label="In Spedizione\nOPL"];
+  cons_opl [label="Consegnato\nOPL"];
+
+  node [
+		style = filled;
+		color = coral ];
+
+  cons_dealer [label="Consegnato\nDealer"];
+
+
+  node [
+		style = filled;
+		color = lightskyblue1 ];
+
+  rich_migr [label="Richiesta\nMigrazione"];
+  migr_in_corso [label="Migrazione\nIn Corso"];
+  migr_ok [label="Migrazione OK"];
+
+  {rank=same; start0 start1;}
+
+  start0 -> init;
+  start1 -> da_sped;
+
+  init -> {da_sped cons_dealer};
+
+  da_sped -> inv_opl;
+  inv_opl -> {sped_opl err_opl};
+  sped_opl -> {cons_opl err_opl};
+  cons_opl -> {init rich_migr};
+  err_opl -> init;
+
+  cons_dealer -> {init rich_migr};
+
+  rich_migr -> migr_in_corso;
+  migr_in_corso -> migr_ok;
+  migr_ok -> end;
+}
