@@ -10,13 +10,15 @@ import (
 
 // Accounts type
 type Accounts struct {
-	Acc           map[int]*model.Account
-	TotMobiles    int
-	TotCluster    int
-	ListDaSpedire accountsDaSpedireType
+	Acc               map[int]*model.Account
+	TotMobiles        int
+	TotCluster        int
+	StoricoSpedizioni *Spedizioni
+	ListDaSpedire     accountsDaSpedireType
 
-	poolOfMutex     *mmsync.PoolMutex // used by mutexByAccID
-	mutexByAccID    mmsync.MutexInt
+	poolOfMutex  *mmsync.PoolMutex // used by mutexByAccID
+	mutexByAccID mmsync.MutexInt
+
 	ChanSpedRequest chan *model.Spedizione
 }
 
@@ -33,12 +35,13 @@ func NewAccounts(totAccounts, totMobiles, totCluster int) *Accounts {
 	muxint := mmsync.NewPoolMutexInt(pool)
 
 	a := &Accounts{
-		Acc:             newAccountsMap(totAccounts, totMobiles),
-		TotMobiles:      totMobiles,
-		TotCluster:      totCluster,
-		poolOfMutex:     pool,
-		mutexByAccID:    muxint,
-		ChanSpedRequest: make(chan *model.Spedizione),
+		Acc:               newAccountsMap(totAccounts, totMobiles),
+		TotMobiles:        totMobiles,
+		TotCluster:        totCluster,
+		poolOfMutex:       pool,
+		mutexByAccID:      muxint,
+		ChanSpedRequest:   make(chan *model.Spedizione),
+		StoricoSpedizioni: NewSpedizioni(),
 	}
 
 	// inizializza la lista degli account da spedire
@@ -103,13 +106,20 @@ func (a *Accounts) Spedisci(maxSped int) {
 	a.ListDaSpedire = a.ListDaSpedire[num:]
 }
 
+// Effettua la spedizione dell'account `acc`.
+// Nel caso di prima spedizione, cerca di spedire TUTTI i mobili dell'account
+// Nel caso di spedizione successive, cerca di spedire `totMobiles` dell'account.
+// Il numero di mobili effettivamente spedito puo' essere inferiore a quanto
+// richiesto in base allo stato dei mobili stessi.
+//
+// La funzione è thread safe (l'account viene lockato)
 func (a *Accounts) doSpedisci(acc *model.Account, totMobiles int) {
 	fmt.Printf("doSpedisci: acc=%v, totMobiles=%d\n", acc, totMobiles)
 
 	// lock account
 	a.mutexByAccID.Lock(acc.ID)
 	// defer unlock account
-	a.mutexByAccID.Unlock(acc.ID)
+	defer a.mutexByAccID.Unlock(acc.ID)
 
 	var mobiles model.MobileList
 	if acc.MigrAccStatus == model.MigrAccDaSpedire {
@@ -136,9 +146,23 @@ func (a *Accounts) doSpedisci(acc *model.Account, totMobiles int) {
 		panic(fmt.Sprintf("Errore spedizione: %d - %s", sped.Esito, sped.EsitoDescr))
 	}
 
+	// aggiunge la spedizione alla lista delle spedizioni-consegne dell'account
 	acc.SpedizCons.AddSpedizione(sped)
-	// TODO: aggiungere la spedizione alla lista delle spedizioni
+
+	// aggiunge la spedizione allo storico spedizioni
+	a.StoricoSpedizioni.Add(acc, sped)
 
 	// invia la spedizione
+	fmt.Printf("Accounts.doSpedisci: %v\n", sped)
 	a.ChanSpedRequest <- sped
+}
+
+// HandleRispostaSpedizioni gestisce gli esiti delle spedizione inviate dall'OPL
+func (a *Accounts) HandleRispostaSpedizioni(response <-chan *model.Spedizione) {
+	for sped := range response {
+
+		a.StoricoSpedizioni.Update(sped)
+
+		fmt.Printf("Accounts.HandleRispostaSpedizioni %v\n", sped)
+	}
 }

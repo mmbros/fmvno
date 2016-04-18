@@ -12,20 +12,32 @@ var nextSpedizioneID = util.NewIntSequence()
 // SpedizioneStatus ...
 type SpedizioneStatus int
 
+// SpedizioneCreata     SpedizioneStatus = iota // --> Esito = EsitoNonDisponibile - non ancora richiesta a OPL
+// SpedizioneRichiesta                          // --> Esito = EsitoNonDisponibile - richiesta a OPL ma non spedita
+// SpedizioneInCorso                            // --> Esito = EsitoNonDisponibile - spedizione evasa da OPL
+// SpedizioneConsegnata                         // --> Esito = ConsegnaOK
+// SpedizioneErrore                             // --> Esito = ErrConsegnaXXX
+
 // Spedizione is ...
 type Spedizione struct {
-	ID               int
-	Status           SpedizioneStatus
-	Esito            SpedizioneEsito
-	EsitoForzato     bool
-	EsitoDescr       string
+	ID           int
+	Status       SpedizioneStatus
+	Esito        SpedizioneEsito
+	EsitoForzato bool
+	EsitoDescr   string
+
 	DataCreazione    time.Time
-	DataInvio        time.Time
-	DataSpedizione   time.Time
+	DataRichiesta    time.Time
+	DataInCorso      time.Time
 	DataEsito        time.Time
 	MobileNumbers    MobileList
 	UsimNumbers      UsimList
 	ElapsedGiorniLav int
+}
+
+func (s *Spedizione) String() string {
+	return fmt.Sprintf("Spedizione{id=%d, %v, mob=%d, d_creaz=%s, d_rich=%s}",
+		s.ID, s.Status, len(s.MobileNumbers), util.YYYYMMDD(s.DataCreazione), util.YYYYMMDD(s.DataRichiesta))
 }
 
 // SpedizioneList ...
@@ -77,9 +89,11 @@ func NewSpedizione(mobiles MobileList) *Spedizione {
 }
 
 // SpedizioneStatus values
+//
 const (
-	SpedizioneDaInviare  SpedizioneStatus = iota // --> Esito = EsitoNonDisponibile
-	SpedizioneInCorso                            // --> Esito = EsitoNonDisponibile
+	SpedizioneCreata     SpedizioneStatus = iota // --> Esito = EsitoNonDisponibile - non ancora richiesta a OPL
+	SpedizioneRichiesta                          // --> Esito = EsitoNonDisponibile - richiesta a OPL ma non spedita
+	SpedizioneInCorso                            // --> Esito = EsitoNonDisponibile - spedizione evasa da OPL
 	SpedizioneConsegnata                         // --> Esito = ConsegnaOK
 	SpedizioneErrore                             // --> Esito = ErrConsegnaXXX
 )

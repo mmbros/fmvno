@@ -1,0 +1,61 @@
+# -------------------------------------------------------------------
+[account]
+
+tot_account = 1000
+tot_usim = 2000
+tot_cluster = 100
+
+# -------------------------------------------------------------------
+[mobile]
+
+status = [
+  8.0, # attivo
+  1.0, # sospeso
+  1.0  # silente
+]
+
+profilo_offerta = [
+  6.0, # voce/dati
+  4.0  # solo dati
+]
+
+# -------------------------------------------------------------------
+[spedizioni]
+
+# data di apertura delle spedizioni (inclusa)
+data_inizio = 2017-02-01T00:00:00Z
+
+# data di chiusura delle spedizioni (inclusa)
+data_fine = 2017-04-01T00:00:00Z
+
+# numero massimo di spedizioni al giorno
+max_al_giorno = 5000
+
+# numero minimo di spedizioni al giorno
+# se non viene raggiunto il numero minimo,
+# la spedizione non viene effettuata
+min_al_giorno = 0
+
+# Quantita' di consegne all'n-esimo giorno lavorativo successivo
+# l'invio della richiesta di spedizione ad OPL.
+gg_lav = [
+  0.0, # giorno 0
+  0.0,
+  1.0,
+  2.0,
+  3.0,
+  2.5,
+  1.7,
+  1.3,
+  1.0,
+  0.6,
+  0.3,
+  0.1,
+  0.05,
+  0.01
+]
+
+# numero di spedizioni da effettuare ogni gg lav
+[spedizioni.al_giorno]
+media = 4000
+stddev = 50

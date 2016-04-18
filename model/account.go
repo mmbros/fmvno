@@ -25,11 +25,6 @@ const (
 	MigrAccTerminata
 )
 
-func (s MigrationAccountStatus) String() string {
-	descr := []string{"MigrAccDaSpedire", "MigrAccInCorso", "MigrAccTerminata"}
-	return fmt.Sprintf("%d - %s", s, descr[s])
-}
-
 // Account ...
 type Account struct {
 	ID            int                `json:"account_id"`

@@ -44,12 +44,19 @@ digraph G {
   da_sped -> inv_opl;
   inv_opl -> {sped_opl err_opl};
   sped_opl -> {cons_opl err_opl};
-  cons_opl -> {init rich_migr};
-  err_opl -> init;
-
-  cons_dealer -> {init rich_migr};
+  cons_opl -> rich_migr;
+  cons_dealer -> rich_migr;
 
   rich_migr -> migr_in_corso;
   migr_in_corso -> migr_ok;
   migr_ok -> end;
+
+
+edge[style=dashed, color=red]
+
+  err_opl -> init;
+  cons_opl -> init;
+  cons_dealer -> init;
+
+
 }

@@ -6,8 +6,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mmbros/fmvno/distribution"
 	"github.com/mmbros/fmvno/model"
 	"github.com/mmbros/fmvno/util"
+	"github.com/spf13/viper"
 )
 
 type spedInCorsoType struct {
@@ -28,7 +30,7 @@ type OPL struct {
 	CalSpedizioni      util.Calendar
 	RespChan           chan *model.Spedizione
 
-	listSpedDaInviare SpedizioneList
+	listSpedDaInviare model.SpedizioneList
 	listSpedInCorso   listaSpedInCorsoType
 	mu                *sync.RWMutex
 	reqChanClosed     bool
@@ -80,14 +82,53 @@ func NewOPL(
 		GiorniLavConsegne:  giorniLavConsegne,
 		EsitoConsegne:      esitoConsegne,
 		CalSpedizioni:      calSpedizioni,
-		listSpedDaInviare:  make(SpedizioneList, 0, 1000),
+		listSpedDaInviare:  make(model.SpedizioneList, 0, 1000),
 		listSpedInCorso:    make(listaSpedInCorsoType, 0, 1000),
 		mu:                 &sync.RWMutex{},
-		RespChan:           make(chan *Spedizione),
+		RespChan:           make(chan *model.Spedizione),
 	}
 
 	return opl
 
+}
+
+// InitConfigOPL return an OPL instance from config file
+func InitConfigOPL() *OPL {
+	dGiorniLavConsegne, _ := distribution.NewDiscreteFromStrings(
+		viper.GetStringSlice("spedizioni.gg_lav"))
+
+	dSpedAlGiorno := distribution.NewNormal(
+		viper.GetFloat64("spedizioni.al_giorno.media"),
+		viper.GetFloat64("spedizioni.al_giorno.stddev"))
+
+	numGiorniLavConsegne := func(date time.Time) int {
+		return dGiorniLavConsegne.RandInt()
+	}
+
+	numSpedAlGiorno := func(date time.Time) int {
+		return dSpedAlGiorno.RandInt()
+	}
+
+	cal := util.Calendar{}
+	cal.SaturdayWorkingDay = true
+
+	opl := NewOPL(
+		viper.GetInt("spedizioni.min_al_giorno"),
+		viper.GetInt("spedizioni.max_al_giorno"),
+		numSpedAlGiorno,
+		numGiorniLavConsegne,
+		nil,
+		cal,
+	)
+
+	//date := viper.GetTime("spedizioni.data_inizio")
+	//engSped.PrintTest(500000, date, cal.AddDay(date, 165))
+	//	engSped.PrintTest(5000, date, cal.AddDay(date, 17))
+	//	saveJSON(engSped, "./data.json")
+
+	fmt.Printf("%v\n", opl)
+
+	return opl
 }
 
 // HandleRichiestaSpedizioni gestisce le richieste di spedizione da parte dei client
@@ -100,12 +141,13 @@ func (opl *OPL) HandleRichiestaSpedizioni(requests <-chan *model.Spedizione) {
 		opl.listSpedDaInviare = append(opl.listSpedDaInviare, sped)
 		opl.mu.Unlock()
 
-		// aggiorna la data invio all'OPL
-		sped.DataInvio = util.SimulDate()
+		// aggiorna stato e data della spedizione
+		sped.Status = model.SpedizioneRichiesta
+		sped.DataRichiesta = util.SimulDate()
 
 		// associa (crea) una nuova USIM a ciascun numero mobile
 		sped.UsimNumbers = make(model.UsimList, len(sped.MobileNumbers))
-		for _, mob := range sped.MobileNumbers {
+		for j, mob := range sped.MobileNumbers {
 			// seleziona (crea) una nuova usim
 			usim := model.NewUsim()
 			// associa la usim al numero
@@ -113,6 +155,11 @@ func (opl *OPL) HandleRichiestaSpedizioni(requests <-chan *model.Spedizione) {
 			// storicizza la usim associata al mobile per questa spedizione
 			sped.UsimNumbers[j] = usim
 		}
+
+		// invia la conferma della spedizione
+		// go func(mysped *model.Spedizione) {
+		// 	opl.RespChan <- mysped
+		// }(sped)
 
 		opl.RespChan <- sped
 	}
@@ -170,9 +217,9 @@ func (opl *OPL) HandleInvioSpedizioni() int {
 	// loop delle spedizioni
 	for j, sped := range currListSpedDaInviare {
 
-		// aggiorna la spedizione
+		// aggiorna stato e data della spedizione
 		sped.Status = model.SpedizioneInCorso
-		sped.DataSpedizione = date
+		sped.DataInCorso = date
 
 		// determina subito i giorni lavorativi e la data per la consegna
 		// per far bene le cose :) non li salva direttamente nella spedizione,
@@ -240,15 +287,15 @@ func (opl *OPL) HandleEsitoSpedizioni() (numOK, numErr int) {
 		}
 
 		// esito della spedizione
-		sped.Esito = SpedizioneEsito(opl.EsitoConsegne(date))
+		sped.Esito = model.SpedizioneEsito(opl.EsitoConsegne(date))
 		sped.DataEsito = date
 
 		// determina lo stato della spedizione in base all'esito
-		if sped.Esito == ConsegnaOK {
-			sped.Status = SpedizioneConsegnata
+		if sped.Esito == model.ConsegnaOK {
+			sped.Status = model.SpedizioneConsegnata
 			numOK++
 		} else {
-			sped.Status = SpedizioneErrore
+			sped.Status = model.SpedizioneErrore
 			numErr++
 		}
 
