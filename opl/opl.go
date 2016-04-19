@@ -134,7 +134,7 @@ func InitConfigOPL() *OPL {
 // HandleRichiestaSpedizioni gestisce le richieste di spedizione da parte dei client
 func (opl *OPL) HandleRichiestaSpedizioni(requests <-chan *model.Spedizione) {
 	for sped := range requests {
-		fmt.Printf("opl.HandleRichiestaSpedizioni %v\n", sped)
+		// fmt.Printf("opl.HandleRichiestaSpedizioni %v\n", sped)
 
 		// aggiunge la nuova spedizione alle spedizioni da inviare
 		opl.mu.Lock()

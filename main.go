@@ -29,7 +29,10 @@ func initConfig(name string) {
 func main() {
 	initConfig("config")
 
-	accounts := fw.NewAccounts(100, 160, 10)
+	accounts := fw.NewAccounts(
+		viper.GetInt("account.tot_account"),
+		viper.GetInt("account.tot_usim"),
+		viper.GetInt("account.tot_cluster"))
 	fmt.Printf("%v\n", accounts)
 
 	opl := opl.InitConfigOPL()
@@ -37,9 +40,23 @@ func main() {
 	go opl.HandleRichiestaSpedizioni(accounts.ChanSpedRequest)
 	go accounts.HandleRispostaSpedizioni(opl.RespChan)
 
-	accounts.Spedisci(5)
-	nInvio := opl.HandleInvioSpedizioni()
-	nOK, nErr := opl.HandleEsitoSpedizioni()
+	var totInvio, totOK, totErr int
 
-	fmt.Printf("invio=%d, ok=%d, err=%d\n", nInvio, nOK, nErr)
+	for iter := 0; iter < 40; iter++ {
+		accounts.Spedisci(5)
+		nInvio := opl.HandleInvioSpedizioni()
+		nOK, nErr := opl.HandleEsitoSpedizioni()
+
+		totInvio += nInvio
+		totOK += nOK
+		totErr += nErr
+
+		fmt.Printf("ITER #%2d: %s - invio=%2d, ok=%2d, err=%2d, Tok=%2d, Terr=%2d, I=%3d, T=%2d\n",
+			iter, util.YYYYMMDD(util.SimulDate()),
+			nInvio, nOK, nErr, totOK, totErr,
+			totInvio, totOK+totErr)
+
+		util.IncSimulDate(1)
+	}
+
 }

@@ -2,6 +2,7 @@ package fw
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 
 	"github.com/mmbros/fmvno/model"
@@ -104,6 +105,25 @@ func (a *Accounts) Spedisci(maxSped int) {
 	}
 	// i primi 'num' sono stati spediti
 	a.ListDaSpedire = a.ListDaSpedire[num:]
+
+	a.checkCloseChanSpedRequest()
+
+}
+
+// XXX gestisce la chiusura del chan delle richieste di spedizioni
+func (a *Accounts) checkCloseChanSpedRequest() {
+
+	if a.ChanSpedRequest == nil {
+		return
+	}
+
+	// chiude il chan delle richieste di spedizioni, se non rimangono più spedizioni da effettuare
+	if len(a.ListDaSpedire) == 0 {
+		log.Println("Closing ChanSpedRequest")
+		close(a.ChanSpedRequest)
+		a.ChanSpedRequest = nil
+	}
+
 }
 
 // Effettua la spedizione dell'account `acc`.
@@ -114,7 +134,7 @@ func (a *Accounts) Spedisci(maxSped int) {
 //
 // La funzione è thread safe (l'account viene lockato)
 func (a *Accounts) doSpedisci(acc *model.Account, totMobiles int) {
-	fmt.Printf("doSpedisci: acc=%v, totMobiles=%d\n", acc, totMobiles)
+	// fmt.Printf("doSpedisci: acc=%v, totMobiles=%d\n", acc, totMobiles)
 
 	// lock account
 	a.mutexByAccID.Lock(acc.ID)
@@ -153,7 +173,7 @@ func (a *Accounts) doSpedisci(acc *model.Account, totMobiles int) {
 	a.StoricoSpedizioni.Add(acc, sped)
 
 	// invia la spedizione
-	fmt.Printf("Accounts.doSpedisci: %v\n", sped)
+	// fmt.Printf("Accounts.doSpedisci: %v\n", sped)
 	a.ChanSpedRequest <- sped
 }
 
@@ -163,6 +183,6 @@ func (a *Accounts) HandleRispostaSpedizioni(response <-chan *model.Spedizione) {
 
 		a.StoricoSpedizioni.Update(sped)
 
-		fmt.Printf("Accounts.HandleRispostaSpedizioni %v\n", sped)
+		// fmt.Printf("Accounts.HandleRispostaSpedizioni %v\n", sped)
 	}
 }

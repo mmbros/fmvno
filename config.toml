@@ -1,9 +1,14 @@
 # -------------------------------------------------------------------
 [account]
+tot_account = 100
+tot_usim = 200
+tot_cluster = 10
 
-tot_account = 1000
-tot_usim = 2000
-tot_cluster = 100
+
+# numero di spedizioni da effettuare ogni gg lav
+[spedizioni.al_giorno]
+media = 50
+stddev = 5
 
 # -------------------------------------------------------------------
 [mobile]
@@ -54,8 +59,3 @@ gg_lav = [
   0.05,
   0.01
 ]
-
-# numero di spedizioni da effettuare ogni gg lav
-[spedizioni.al_giorno]
-media = 4000
-stddev = 50
