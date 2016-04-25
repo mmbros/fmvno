@@ -100,8 +100,17 @@ func (a *Accounts) Spedisci(maxSped int) {
 		}
 		// XXX da provare la goroutine
 		// go a.doSpedisci(acc)
-		a.doSpedisci(acc, -1)
-		num++
+		//	a.doSpedisci(acc, -1)
+
+		// crea la spedizione
+		sped := a.newSpedizione(acc, -1)
+
+		if sped != nil {
+			// invia la spedizione
+			a.ChanSpedRequest <- sped
+			num++
+		}
+
 	}
 	// i primi 'num' sono stati spediti
 	a.ListDaSpedire = a.ListDaSpedire[num:]
@@ -126,15 +135,15 @@ func (a *Accounts) checkCloseChanSpedRequest() {
 
 }
 
-// Effettua la spedizione dell'account `acc`.
+// Crea una nuova spedizione relativa all'account `acc`.
 // Nel caso di prima spedizione, cerca di spedire TUTTI i mobili dell'account
 // Nel caso di spedizione successive, cerca di spedire `totMobiles` dell'account.
 // Il numero di mobili effettivamente spedito puo' essere inferiore a quanto
 // richiesto in base allo stato dei mobili stessi.
-//
+// Restituisce la spedizione creata,
+// o nil nel caso in cui nessun mobile dell'account puo' essere spedito.
 // La funzione è thread safe (l'account viene lockato)
-func (a *Accounts) doSpedisci(acc *model.Account, totMobiles int) {
-	// fmt.Printf("doSpedisci: acc=%v, totMobiles=%d\n", acc, totMobiles)
+func (a *Accounts) newSpedizione(acc *model.Account, totMobiles int) *model.Spedizione {
 
 	// lock account
 	a.mutexByAccID.Lock(acc.ID)
@@ -154,8 +163,8 @@ func (a *Accounts) doSpedisci(acc *model.Account, totMobiles int) {
 
 	if len(mobiles) == 0 {
 		// nessun mobile dell'account può essere spedito
-		// in ogni caso, se necc, la prima spedizione si considera fatta
-		return
+		// in ogni caso la prima spedizione si considera fatta
+		return nil
 	}
 
 	// crea la nuova spedizione
@@ -172,9 +181,7 @@ func (a *Accounts) doSpedisci(acc *model.Account, totMobiles int) {
 	// aggiunge la spedizione allo storico spedizioni
 	a.StoricoSpedizioni.Add(acc, sped)
 
-	// invia la spedizione
-	// fmt.Printf("Accounts.doSpedisci: %v\n", sped)
-	a.ChanSpedRequest <- sped
+	return sped
 }
 
 // HandleRispostaSpedizioni gestisce gli esiti delle spedizione inviate dall'OPL
